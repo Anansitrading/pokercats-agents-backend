@@ -105,43 +105,65 @@ def create_supervisor(
     
     def supervisor_node(state: Dict[str, Any]) -> Dict[str, Any]:
         """Supervisor decides which agent should handle the request"""
+        import re
+        
         messages = state.get("messages", [])
+        iterations = state.get("iterations", 0)
+        
+        # Prevent infinite loops - max 5 iterations
+        if iterations >= 5:
+            logger.warning("Max iterations reached, ending workflow")
+            return {**state, "next_agent": -1, "iterations": iterations}
+        
+        # Check if we have a recent agent response - if so, likely done
+        if len(messages) > 2:
+            last_msg = messages[-1]
+            if isinstance(last_msg, AIMessage) and len(last_msg.content) > 50:
+                # Agent gave substantive response, end workflow
+                return {**state, "next_agent": -1, "iterations": iterations}
         
         # Build proper message list for Gemini
-        # Gemini requires actual conversation messages, not just system instructions
         lc_messages = []
         
-        # Add system instruction as first message
+        # STRICT system prompt for structured output
         sys_content = f"{prompt}\n\n" \
-                      "Determine which agent should handle this request. " \
-                      "Reply with the agent index (0-based) or 'END' to finish."
+                      "**CRITICAL**: You MUST respond in EXACTLY this format:\n" \
+                      "- To route to an agent: 'AGENT: <number>' (e.g., 'AGENT: 0')\n" \
+                      "- To finish: 'END'\n" \
+                      "Do NOT include any other text. Just 'AGENT: X' or 'END'."
         lc_messages.append(SystemMessage(content=sys_content))
         
-        # Add conversation messages - ensure we have at least one user message
+        # Add conversation messages
         for msg in messages:
             if isinstance(msg, (HumanMessage, AIMessage, SystemMessage)):
                 lc_messages.append(msg)
         
-        # If no user messages exist, add a default one to prevent empty contents error
         if not any(isinstance(m, HumanMessage) for m in lc_messages):
-            lc_messages.append(HumanMessage(content="Process the current request."))
+            lc_messages.append(HumanMessage(content="Process this request."))
         
-        # Get supervisor decision with proper message list
+        # Get supervisor decision
         response = model.invoke(lc_messages)
         content = response.content if hasattr(response, 'content') else str(response)
+        logger.info(f"Supervisor decision: {content}")
         
-        # Parse agent selection
-        agent_idx = 0  # Default to first agent
+        # Parse with regex for robust extraction
         if "END" in content.upper():
-            return {**state, "next_agent": -1}  # Signal completion
+            return {**state, "next_agent": -1, "iterations": iterations}
         
-        for token in content.split():
-            if token.isdigit():
-                agent_idx = int(token)
-                if 0 <= agent_idx < len(agents):
-                    break
+        # Look for "AGENT: N" pattern
+        match = re.search(r'AGENT:\s*(\d+)', content, re.IGNORECASE)
+        if match:
+            agent_idx = int(match.group(1))
+            if 0 <= agent_idx < len(agents):
+                return {**state, "next_agent": agent_idx, "iterations": iterations + 1}
         
-        return {**state, "next_agent": agent_idx}
+        # Fallback: if first message, route to agent 0, otherwise END
+        if iterations == 0:
+            logger.warning(f"Could not parse supervisor response: {content}. Starting with agent 0.")
+            return {**state, "next_agent": 0, "iterations": 1}
+        else:
+            logger.warning(f"Could not parse supervisor response: {content}. Ending workflow.")
+            return {**state, "next_agent": -1, "iterations": iterations}
     
     # Create agent wrapper nodes
     agent_nodes = {}
@@ -206,6 +228,7 @@ class SupervisorState(MessagesState):
     user_context: dict = {}
     assets_generated: list = []
     next_agent: int = 0  # For supervisor routing
+    iterations: int = 0  # Track iterations to prevent infinite loops
 
 
 def create_supervisor_workflow(provider: Provider = "google"):
