@@ -57,16 +57,15 @@ def _get_gemini_model(
 ) -> ChatGoogleGenerativeAI:
     """Get Google Gemini model based on task type"""
     
-    # Model selection based on task complexity
-    # langchain-google-genai v2.0.10 REQUIRES "models/" prefix
+    # Model selection based on task complexity - USING GEMINI 2.5 (verified from API)
     if task_type == "reasoning":
-        model_name = "models/gemini-1.5-pro"  # Best reasoning, slower
+        model_name = "gemini-2.5-pro"  # Latest Pro model for complex reasoning
     elif task_type == "repetitive":
-        model_name = "models/gemini-1.5-flash"  # Fast, cost-effective
+        model_name = "gemini-2.5-flash"  # Fast, cost-effective
     elif task_type == "creative":
-        model_name = "models/gemini-1.5-pro"  # Best for creative tasks
+        model_name = "gemini-2.5-pro"  # Best for creative tasks
     else:
-        model_name = "models/gemini-1.5-flash"
+        model_name = "gemini-2.5-flash"
     
     return ChatGoogleGenerativeAI(
         model=model_name,
@@ -172,8 +171,8 @@ def get_model_info(provider: Provider, task_type: TaskType) -> dict:
         }
         model_name = model_map.get(task_type, "gemini-2.5-flash")
         cost_per_1k = {
-            "gemini-2.5-pro": 0.00125,  # Input: $1.25 per 1M tokens
-            "gemini-2.5-flash": 0.000075,  # Input: $0.075 per 1M tokens
+            "gemini-2.5-pro": 0.00125,  # $1.25 per 1M tokens
+            "gemini-2.5-flash": 0.000075,  # $0.075 per 1M tokens
         }
     else:  # openai
         model_map = {
