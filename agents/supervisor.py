@@ -107,18 +107,27 @@ def create_supervisor(
         """Supervisor decides which agent should handle the request"""
         messages = state.get("messages", [])
         
-        # Build context for supervisor
-        dialogue = "\n".join(
-            [f"{getattr(m, 'type', 'unknown')}: {getattr(m, 'content', str(m))}" 
-             for m in messages]
-        )
+        # Build proper message list for Gemini
+        # Gemini requires actual conversation messages, not just system instructions
+        lc_messages = []
         
-        sys_content = f"{prompt}\n\nCurrent conversation:\n{dialogue}\n\n" \
+        # Add system instruction as first message
+        sys_content = f"{prompt}\n\n" \
                       "Determine which agent should handle this request. " \
                       "Reply with the agent index (0-based) or 'END' to finish."
+        lc_messages.append(SystemMessage(content=sys_content))
         
-        # Get supervisor decision
-        response = model.invoke([SystemMessage(content=sys_content)])
+        # Add conversation messages - ensure we have at least one user message
+        for msg in messages:
+            if isinstance(msg, (HumanMessage, AIMessage, SystemMessage)):
+                lc_messages.append(msg)
+        
+        # If no user messages exist, add a default one to prevent empty contents error
+        if not any(isinstance(m, HumanMessage) for m in lc_messages):
+            lc_messages.append(HumanMessage(content="Process the current request."))
+        
+        # Get supervisor decision with proper message list
+        response = model.invoke(lc_messages)
         content = response.content if hasattr(response, 'content') else str(response)
         
         # Parse agent selection
