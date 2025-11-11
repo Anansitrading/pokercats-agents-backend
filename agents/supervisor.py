@@ -331,15 +331,15 @@ You manage four expert agents:
 
 def create_simple_supervisor():
     """
-    Create a simplified supervisor for testing without sub-agents
+    Create a simplified supervisor for general conversation
+    Routes to specialized agents only when explicitly needed
     
     Returns:
         Basic supervisor workflow
     """
-    model = ChatOpenAI(
-        model=os.getenv("OPENAI_MODEL", "gpt-4o"),
-        temperature=0.7,
-    )
+    # Use Gemini Flash for speed and better rate limits
+    provider = os.getenv("MODEL_PROVIDER", "google").lower()
+    model = get_agent_model("supervisor", provider=provider)
     
     class SimpleState(MessagesState):
         """Simple state for testing"""
@@ -354,7 +354,15 @@ def create_simple_supervisor():
         
         # Add system instruction
         lc_messages.append(
-            SystemMessage(content="You are a helpful video production assistant. Help users create videos.")
+            SystemMessage(content="""You are a friendly AI assistant specializing in video production.
+
+When users greet you or chat casually, respond naturally and warmly.
+When users want to create videos, help them by:
+- Understanding their video goals (type, duration, audience, message)
+- Offering to help with scripts, storyboards, or production planning
+- Asking clarifying questions to gather requirements
+
+Be conversational, helpful, and concise. Don't overwhelm with technical jargon unless asked.""")
         )
         
         # Add conversation messages (already LangChain objects from execute.py)
@@ -384,15 +392,24 @@ supervisor_workflow = None  # Will be initialized on first use
 def get_supervisor_workflow():
     """
     Lazy initialization of supervisor workflow
+    
+    TEMPORARY: Using simple supervisor until multi-agent routing is refined
     """
     global supervisor_workflow
     
     if supervisor_workflow is None:
-        try:
-            supervisor_workflow = create_supervisor_workflow()
-            print("✅ Supervisor workflow initialized with all sub-agents")
-        except Exception as e:
-            print(f"⚠️  Error initializing full supervisor, using simple version: {e}")
-            supervisor_workflow = create_simple_supervisor()
+        # Use simple supervisor for now - multi-agent routing needs more work
+        # Issue: Routes simple greetings like "hey" to specialized agents
+        # TODO: Add intent classification before routing
+        supervisor_workflow = create_simple_supervisor()
+        print("✅ Using simple supervisor (single-agent mode)")
+        
+        # Uncomment when multi-agent routing is ready:
+        # try:
+        #     supervisor_workflow = create_supervisor_workflow()
+        #     print("✅ Supervisor workflow initialized with all sub-agents")
+        # except Exception as e:
+        #     print(f"⚠️  Error initializing full supervisor: {e}")
+        #     supervisor_workflow = create_simple_supervisor()
     
     return supervisor_workflow
