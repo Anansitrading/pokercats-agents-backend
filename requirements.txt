@@ -1,0 +1,28 @@
+# NOTE: deepagents and langgraph-supervisor not available on PyPI
+# These were placeholders in the original requirements
+# deepagents>=0.1.0
+# langgraph-supervisor>=0.1.0
+
+# Core Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+httpx>=0.27.0
+websockets>=12.0
+sse-starlette>=2.0.0
+
+# LangChain & LangGraph
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-google-genai>=2.0.0
+langgraph>=0.2.0
+
+# AI Service Clients
+google-generativeai>=0.8.0
+tavily-python>=0.3.0
+fal-client>=0.4.0
+
+# Database
+psycopg[binary]>=3.2.0
+pgvector>=0.3.0
