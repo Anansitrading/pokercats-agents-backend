@@ -104,23 +104,23 @@ def _get_openai_model(
 # Per-agent model recommendations based on role
 AGENT_MODEL_CONFIG = {
     "supervisor": {
-        "task_type": "reasoning",  # Complex routing decisions
+        "task_type": "repetitive",  # Use Flash to avoid rate limits
         "temperature": 0.7,
     },
     "vrd_agent": {
-        "task_type": "reasoning",  # Analyze requirements deeply
+        "task_type": "repetitive",  # Use Flash for speed
         "temperature": 0.7,
     },
     "script_smith_agent": {
-        "task_type": "creative",  # Creative script writing
+        "task_type": "repetitive",  # Use Flash - still creative with higher temp
         "temperature": 0.9,
     },
     "shot_master_agent": {
-        "task_type": "reasoning",  # Technical shot planning
+        "task_type": "repetitive",  # Use Flash for speed
         "temperature": 0.7,
     },
     "video_solver_agent": {
-        "task_type": "repetitive",  # Tool selection is formulaic
+        "task_type": "repetitive",  # Use Flash
         "temperature": 0.5,
     },
 }
